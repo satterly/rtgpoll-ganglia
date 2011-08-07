@@ -1,0 +1,157 @@
+# 
+# RTG 0.7.4 configure.in
+# Author: Rob Beverly <rbeverly@users.sourceforge.net>
+#
+
+AC_INIT(src/rtg.h)
+AC_CONFIG_AUX_DIR(config)
+AC_SUBST(ac_aux_dir)
+AM_INIT_AUTOMAKE(rtgpoll, 0.8)
+AC_SUBST(VERSION)
+AM_CONFIG_HEADER(config/config.h)
+AC_CANONICAL_HOST
+AC_PREFIX_DEFAULT(/usr/local/rtg)
+
+dnl Compilation Setup
+AC_ARG_WITH(snmp,
+   [  --with-snmp=PATH        SNMP path [default=/usr/local]],,)
+
+dnl substitute them in all the files listed in AC_OUTPUT
+AC_SUBST(RTG_HOME)
+
+dnl if host_alias is empty, ac_cv_host_alias may still have the info
+if test -z "$host_alias"; then
+    host_alias=$ac_cv_host_alias
+fi
+
+dnl Platform-specific tweaks
+case $host_alias in
+*solaris*)
+    CPPFLAGS="$CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS";;
+*freebsd*)
+    LIBS="$LIBS -pthread"
+    AC_DEFINE(HAVE_LIBPTHREAD, 1);;
+esac
+
+dnl Checks for programs.
+AC_PROG_AWK
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_RANLIB
+
+AC_MSG_CHECKING([whether to enable -Wall])
+AC_ARG_ENABLE(warnings,
+  [  --enable-warnings       Enable -Wall if using gcc.],
+  [ if test -n "$GCC"; then
+    AC_MSG_RESULT(adding -Wall to CFLAGS.)
+        CFLAGS="$CFLAGS -Wall"
+   fi],AC_MSG_RESULT(no))
+
+dnl Checks for libraries.
+AC_CHECK_LIB(kstat, kstat_lookup)
+AC_CHECK_LIB(nsl, gethostbyname)
+AC_CHECK_LIB(socket, socket)
+AC_CHECK_LIB(m, floor)
+AC_CHECK_LIB(pthread, pthread_exit)
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(malloc.h ctype.h sys/time.h netinet/in.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_CHECK_TYPES([unsigned long long, long long])
+AC_C_CONST
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(gettimeofday strerror strtoll)
+
+dnl Determine RTG home installation path for script substitution
+if test "x$prefix" != "xNONE"; then
+    RTG_HOME=$prefix 
+else 
+    RTG_HOME=/usr/local/rtg
+fi
+AC_DEFINE_UNQUOTED(RTG_HOME, "$RTG_HOME", RTG root installation prefix)
+
+dnl ****************** Begin SNMP checking ***********************
+dnl Determine UCD or Net-SNMP installation paths
+if test "x$with_snmp" != "x"; then
+    for i in / /ucd-snmp /include/ucd-snmp; do
+       test -f $with_snmp/$i/snmp.h           && SNMP_INCDIR=$with_snmp/$i
+    done
+    for i in / /net-snmp /include/net-snmp; do
+       test -f $with_snmp/$i/net-snmp-config.h  && SNMP_INCDIR=$with_snmp/$i
+    done
+    test -f $with_snmp/lib/libsnmp.a -o -f $with_snmp/lib/libsnmp.so && SNMP_LIBDIR=$with_snmp/lib
+    test -f $with_snmp/lib/libnetsnmp.a -o -f $with_snmp/lib/libnetsnmp.so && SNMP_LIBDIR=$with_snmp/lib
+    AC_DEFINE(IN_UCD_SNMP_SOURCE, 1, [UCD SNMP Path Explicitly Defined])
+else
+    for i in /usr/include /usr/local/include; do
+      test -f $i/snmp.h                       && SNMP_INCDIR=$i
+      test -f $i/ucd-snmp/snmp.h              && SNMP_INCDIR=$i/ucd-snmp
+      test -f $i/net-snmp/net-snmp-config.h   && SNMP_INCDIR=$i/net-snmp
+      test -f $i/snmp/snmp.h                  && SNMP_INCDIR=$i/snmp
+      test -f $i/snmp/include/ucd-snmp/snmp.h && SNMP_INCDIR=$i/snmp/include/ucd-snmp
+      test -f $i/snmp/include/net-snmp/net-snmp-config.h && SNMP_INCDIR=$i/snmp/include/net-snmp
+    done
+    for i in /usr /usr/snmp /usr/local /usr/local/snmp; do
+      test -f $i/lib/libsnmp.a -o -f $i/lib/libsnmp.so && SNMP_LIBDIR=$i/lib
+      test -f $i/lib/libnetsnmp.a -o -f $i/lib/libnetsnmp.so && SNMP_LIBDIR=$i/lib
+    done
+fi
+
+if test -z "$SNMP_INCDIR"; then
+  if test "x$with_snmp" != "x";then
+    AC_MSG_ERROR(Cannot find SNMP header files under $with_snmp)
+  else
+    AC_MSG_ERROR(Cannot find SNMP headers.  Use --with-snmp= to specify non-default path.)
+  fi
+fi
+
+LDFLAGS="-L$SNMP_LIBDIR $LDFLAGS"
+CFLAGS="-I$SNMP_INCDIR -I$SNMP_INCDIR/.. $CFLAGS"
+
+dnl Net/UCD-SNMP includes v3 support and insists on crypto unless 
+dnl compiled --without-openssl
+AC_MSG_CHECKING([if UCD-SNMP needs crypto support])
+SNMP_SSL=no
+AC_TRY_COMPILE([#include <ucd-snmp-config.h>], [exit(USE_OPENSSL != 1);],
+  [  AC_MSG_RESULT(yes)
+     SNMP_SSL=yes ],
+  AC_MSG_RESULT(no))
+AC_MSG_CHECKING([if Net-SNMP needs crypto support])
+AC_TRY_COMPILE([#include <net-snmp-config.h>], [exit(USE_OPENSSL != 1);],
+  [  AC_MSG_RESULT(yes)
+     SNMP_SSL=yes ],
+  AC_MSG_RESULT(no))
+
+if test "$SNMP_SSL" = "yes"; then
+  LDFLAGS="-L/usr/local/ssl/lib $LDFLAGS"
+  AC_CHECK_LIB(crypto, CRYPTO_free,[],[AC_MSG_ERROR(libcrypto not found!)])
+fi
+
+AC_CHECK_LIB(netsnmp, snmp_timeout,
+       [ LIBS="-lnetsnmp $LIBS"
+         AC_DEFINE(HAVE_NET_SNMP, 1, Net-SNMP Found) 
+	 OLD_UCD_SNMP=no ],
+       [ AC_MSG_RESULT(Cannot find Net-SNMP libraries(netsnmp)... checking UCD-SNMP)
+         OLD_UCD_SNMP=yes ])
+
+if test "$OLD_UCD_SNMP" = "yes"; then
+ AC_CHECK_LIB(snmp, snmp_timeout,
+       [ LIBS="-lsnmp $LIBS"
+         AC_DEFINE(OLD_UCD_SNMP, 1, Old UCD SNMP Version) ],
+       AC_MSG_ERROR(Cannot find UCD-SNMP libraries(snmp)))
+fi
+dnl ****************** End SNMP checking ***********************
+
+AC_CHECK_LIB(ganglia, Ganglia_pool_create, [ LIBS="-lganglia $LIBS" ],[ AC_MSG_ERROR(libganglia not found!) ])
+
+AC_OUTPUT(Makefile                         \
+	  src/Makefile)

@@ -1,0 +1,324 @@
+#! /usr/bin/perl
+#########################################################################
+# Program:     $Id: rtgtargmkr.pl.in,v 1.5 2003/09/26 15:56:02 rbeverly Exp $
+# Author:      $Author: rbeverly $
+# Date:        $Date: 2003/09/26 15:56:02 $
+# Description: RTG Target File Generator 
+#########################################################################
+
+#########################################################################
+# Local customization
+
+$community   = "public";         # Default SNMP community
+$defbits     = 32;               # Default OID bits: 32/64
+$output      = "targets.cfg";    # Output target file name
+$router_file = "routers";        # Input list of devices to poll
+$conf_file   = "rtg.conf";       # RTGpoll and RTGplot configurations
+$INFO        = 1;                # Print informational messages
+$DEBUG       = 0;                # Print debug messages
+$DBOFF       = 0;                # Turn database queries off (debug)
+
+# No edits needed beyond this point
+#########################################################################
+
+
+# This Perl script requires the included SNMP modules
+use lib qw(. /usr/local/rtg/etc);
+use BER;
+use SNMP_Session;
+use SNMP_util;
+
+# This Perl script requires the not-included DBI module
+use DBI;
+
+# Set of standard MIB-II objects of interest
+%mibs_of_interest_32 = (
+    "ifInOctets"     => ".1.3.6.1.2.1.2.2.1.10.",
+    "ifOutOctets"    => ".1.3.6.1.2.1.2.2.1.16.",
+    "ifInUcastPkts"  => ".1.3.6.1.2.1.2.2.1.11.",
+    "ifOutUcastPkts" => ".1.3.6.1.2.1.2.2.1.17.",
+#    "ifInErrors"     => ".1.3.6.1.2.1.2.2.1.14."
+);
+
+# Set of 64 bit objects, preferred where possible
+%mibs_of_interest_64 = (
+    "ifInOctets"     => ".1.3.6.1.2.1.31.1.1.1.6.",
+    "ifOutOctets"    => ".1.3.6.1.2.1.31.1.1.1.10.",
+    "ifInUcastPkts"  => ".1.3.6.1.2.1.31.1.1.1.7.",
+    "ifOutUcastPkts" => ".1.3.6.1.2.1.31.1.1.1.11.",
+#    "ifInErrors"     => ".1.3.6.1.2.1.2.2.1.14."
+);
+
+$normal = [
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 1 ],        # ifIndex
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 2 ],        # ifDescr
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 5 ],        # ifSpeed
+    [ 1, 3, 6, 1, 2, 1, 31, 1, 1, 1, 18 ],    # ifAlias
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 7 ],        # ifAdminStatus
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 8 ]         # ifOperStatus
+];
+
+$catalyst = [
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 1 ],             # ifIndex
+    [ 1, 3, 6, 1, 2, 1, 31, 1, 1, 1, 1 ],          # ifXEntry.ifName
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 5 ],             # ifSpeed
+    [ 1, 3, 6, 1, 4, 1, 9,  5, 1, 4, 1, 1, 4 ],    # CiscoCatalystPortName
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 7 ],             # ifAdminStatus
+    [ 1, 3, 6, 1, 2, 1, 2,  2, 1, 8 ]              # ifOperStatus
+];
+
+# List of "reserved" interfaces, i.e. those we don't care to monitor
+# This list is inclusive of only Cisco/Juniper
+@reserved = (
+    "tap",  "pimd", "pime", "ipip",
+    "lo0",  "gre",  "pd-",  "pe-",  "gr-", "ip-",
+    "vt-",  "mt-",  "mtun", "Null", "Loopback", "aal5",
+    "-atm", "sc0"
+);
+
+# Default locations to find RTG configuration file
+@configs = ("rtg.conf", "/usr/local/rtg/etc/rtg.conf", "/etc/rtg.conf");
+foreach $conf (@configs) {
+  if (open CONF, "<$conf") {
+    print "Reading [$conf].\n" if $DEBUG;
+    while ($line = <CONF>) {
+      @cVals = split /\s+/, $line;
+      if ($cVals[0] =~ /DB_Host/) {
+        $db_host=$cVals[1];
+      } elsif ($cVals[0] =~ /DB_User/) {
+        $db_user=$cVals[1];
+      } elsif ($cVals[0] =~ /DB_Pass/) {
+        $db_pass=$cVals[1];
+      } elsif ($cVals[0] =~ /DB_Database/) {
+        $db_db=$cVals[1];
+      } elsif ($cVals[0] =~ /Interval/) {
+        $interval=$cVals[1];
+      }	
+    }
+    last;
+  }
+}
+
+# DBI SQL Insert Subroutine
+sub sql_insert {
+    ($sql) = @_;
+    print "SQL: $sql\n" if $DEBUG;
+    my $sth = $dbh->prepare($sql)
+      or die "Can't prepare $sql: $dbh->errstr\n";
+    my $rv = $sth->execute
+      or die "can't execute the query: $sth->errstr\n";
+}
+
+# Find an RTG router id (rid) in the MySQL database.  If it doesn't
+# exist, create a new entry and corresponding tables.
+sub find_router_id {
+    ($router) = @_;
+    $sql = "SELECT DISTINCT rid FROM router WHERE name=\"$router\"";
+    print "SQL: $sql\n" if $DEBUG;
+    my $sth = $dbh->prepare($sql)
+      or die "Can't prepare $sql: $dbh->errstr\n";
+    my $rv = $sth->execute
+      or die "can't execute the query: $sth->errstr\n";
+    if ( $sth->rows == 0 ) {
+        print "No router id found for $router...";
+        $sql = "INSERT INTO router (name) VALUES(\"$router\")";
+        print "adding.\n";
+        &sql_insert($sql);
+        $rid = &find_router_id($router);
+        foreach $mib ( keys %mibs_of_interest ) {
+          $sql = "CREATE TABLE $mib"."_$rid (id INT NOT NULL, dtime DATETIME NOT NULL, counter BIGINT NOT NULL, KEY $mib"."_$rid". "_idx (dtime))";
+          &sql_insert($sql);
+        }
+    }
+    else {
+        @row = $sth->fetchrow_array();
+        $rid = $row[0];
+    }
+    $sth->finish;
+    return $rid;
+}
+
+# Find an RTG interface id (iid) in the MySQL database.  If it doesn't
+# exist, create a new entry.
+sub find_interface_id {
+    ( $rid, $int, $desc, $speed ) = @_;
+    $desc =~ s/ +$//g;    #remove trailing whitespace
+    $sql = "SELECT id, description FROM interface WHERE rid=$rid AND name=\"$int\"";
+    print "SQL: $sql\n" if $DEBUG;
+    my $sth = $dbh->prepare($sql)
+      or die "Can't prepare $sql: $dbh->errstr\n";
+    my $rv = $sth->execute
+      or die "can't execute the query: $sth->errstr\n";
+    if ( $sth->rows == 0 ) {
+        print "No id found for $int on device $rid...";
+        $desc =~ s/\"/\\\"/g;    # Fix " in desc
+        $sql = "INSERT INTO interface (name, rid, speed, description) VALUES(\"$int\", $rid, $speed, \"$desc\")";
+        print "adding.\n";
+        &sql_insert($sql);
+        $iid = &find_interface_id( $rid, $int, $desc, $speed );
+    }
+    else {
+        @row = $sth->fetchrow_array();
+        $iid = $row[0];
+        if ( $row[1] ne $desc ) {
+            print "Interface description changed.\n";
+            print "Was: \"$row[1]\"\n";
+            print "Now: \"$desc\"\n";
+            print "Suggest: UPDATE interface SET description='$desc' WHERE id=$iid\n";
+        }
+    }
+    $sth->finish;
+    return $iid;
+}
+
+sub process() {
+    my $reserved = 0;
+    my ($rowindex, $index, $ifdescr, $ifspeed, $ifalias,
+        $ifadminstatus, $ifoperstatus ) = @_;
+    grep ( defined $_ && ( $_ = pretty_print $_),
+      ( $index, $ifdescr, $ifspeed, $ifalias, $ifadminstatus, $ifoperstatus ) );
+
+    # Check for "reserved" interfaces, i.e. those we don't want to 
+    # include in RTG
+    foreach $resv (@reserved) {
+        if ( $ifdescr =~ /$resv/ ) {
+            $reserved = 1;
+        }
+    }
+    if ($ifdescr) {
+        if ( $system eq "Catalyst" ) {
+            if ( $ifdescr =~ /(\d+)\/(\d+)/ ) {
+                $catalystoid = ".1.3.6.1.4.1.9.5.1.4.1.1.4.".$1.".". $2;
+                @result = snmpget( "$communities{$router}\@$router", "$catalystoid" );
+                $ifalias = join ( ' ', @result );
+            }
+        }
+        if ( $ifadminstatus == 1 && $ifoperstatus == 1 && $reserved == 0 ) {
+            if ( !$DBOFF ) {
+                $iid = &find_interface_id( $rid, $ifdescr, $ifalias, $ifspeed );
+            }
+            if ($ifspeed ne "") {
+                $ifspeed *= $interval;
+                int $ifspeed;
+            }
+            foreach $mib ( keys %mibs_of_interest ) {
+#    
+# Instead of using the router name, use IP as it's unlikely to change
+# often and IPs are crucial during DNS failures - rob
+#               print CFG "$router\t";
+#
+                ($a,$a,$a,$a,@addrs) = gethostbyname($router);
+                printf CFG "%d.%d.%d.%d\t", unpack('C4',$addrs[0]);
+                print CFG "$mibs_of_interest{$mib}$index\t";
+                print CFG "$bits\t";
+                print CFG "$communities{$router}\t";
+                print CFG "$mib" . "_$rid\t";
+                print CFG "$iid\t";
+                if ($ifspeed ne "") {
+                    print CFG "$ifspeed\t";
+                }
+                print CFG "$ifalias ($ifdescr)\n";
+            }
+        }
+        else {
+            if ($DEBUG) {
+                print "Ignoring $router $ifalias ($ifdescr) ";
+                print "[admin = up] "     if $ifadminstatus == 1;
+                print "[admin = down] "   if $ifadminstatus != 1;
+                print "[oper = up] "      if $ifoperstatus == 1;
+                print "[oper = down] "    if $ifoperstatus != 1;
+                print "[reserved = yes] " if $reserved == 1;
+                print "[reserved = no] "  if $reserved != 1;
+                print "\n";
+            }
+        }
+    }
+}
+
+sub main {
+    @router_files = ("$router_file", "/usr/local/rtg/etc/$router_file", "/etc/$router_file");
+    foreach $fullpath_router_file (@router_files) {
+        if (open ROUTERS, "<$fullpath_router_file") {
+          last;
+        }
+    }
+    while (<ROUTERS>) {
+        chomp;
+        s/ +$//g;    #remove space at the end of the line
+        next if /^ *\#/;    #ignore comment lines
+        next if /^ *$/;     #ignore empty lines
+        if ( $_ =~ /(.+):(.+):(.+)/ ) {
+            $r = $1;
+            $c = $2;
+            $b = $3;
+            $communities{$r} = $c;
+            $counterBits{$r} = $b;
+            push @routers, $r;
+        } elsif ( $_ =~ /(.+):(.+)/ ) {
+            $r = $1;
+            $c = $2;
+            $communities{$r} = $c;
+            push @routers, $r;
+        } else {
+            $communities{$_} = $community;
+            push @routers, $_;
+        }
+    }
+    close ROUTERS;
+    $interval *= 1.2; # Minor offset w/ 1.2
+    if ( $routers[0] eq "rtr-1.my.net" ) {
+        print "\n** Error, $0 is not yet configured\n\n";
+        print "Please edit the \"$router_file\" file and add network devices\n";
+        exit(-1);
+    }
+
+    # SQL Database Handle
+    if ( !$DBOFF ) {
+       $dbh = DBI->connect("DBI:mysql:$db_db:host=$db_host",$db_user,$db_pass);
+       if (!$dbh) {
+          print "Could not connect to database ($db_db) on $db_host.\n";
+          print "Check configuration.\n";
+          exit(-1);
+       }
+    }
+
+    open CFG, ">$output" or die "Could not open file: $!";
+    ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) =
+      localtime( time() );
+    printf CFG "# Generated %02d/%02d/%02d %02d:%02d by $0\n", $mon + 1, $mday,
+      $year + 1900, $hour, $min;
+    print CFG "# Host\tOID\tBits\tCommunity\tTable\tID\tDescription\n";
+
+    foreach $router (@routers) {
+        $bits = $counterBits{$router};
+        # Sanity check bits
+        $bits = $defbits if ( ( $bits != 32 ) && ( $bits != 64 ) );
+        if ( $bits == 64 ) { %mibs_of_interest = %mibs_of_interest_64 }
+        else { %mibs_of_interest = %mibs_of_interest_32 }
+
+        print "Poking $router ($communities{$router}) ($bits bit)...\n" if $INFO;
+        if ( !$DBOFF ) {
+            $rid = &find_router_id($router);
+        }
+        @result = snmpget( "$communities{$router}\@$router", 'sysDescr' );
+        $system = join ( ' ', @result );
+        print "System: $system\n" if $DEBUG;
+        $session = SNMP_Session->open( $router, $communities{$router}, 161 )
+          || die "Error opening SNMP session to $router";
+        if ( $system =~ /.*Cisco.*WS-.*/ ) {
+            $system = "Catalyst";
+            $session->map_table( $catalyst, \&process );
+        }
+        else {
+            $session->map_table( $normal, \&process );
+        }
+    }
+    close CFG;
+    if ( !$DBOFF ) {
+        $dbh->disconnect;
+    }
+    print "Done.\n";
+}
+
+main;
+exit(0);

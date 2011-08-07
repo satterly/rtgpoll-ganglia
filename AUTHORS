@@ -1,0 +1,12 @@
+Written by Robert Beverly <rbeverly@users.sourceforge.net>.
+
+Uses (and useless without) the excellent work of many others, including:
+ MySQL, UCD/Net-SNMP, gd, png, cgilib and SNMP_Session.
+
+Inspired by the likes of MRTG, RRDtool (Tobias Oetiker, Dave Rand)
+and Cricket (Jeff Allen).
+
+Special thanks to RTG co-maintainer Chris Brotsos.
+
+Thanks to all those who have tested and provided patches or suggestions
+to RTG!
