@@ -18,7 +18,7 @@ case "$1" in
       echo -n "Starting RTG Poll for Ganglia: "
       [ -f $RTGPOLL ] || exit 1
 
-      daemon --pidfile=/var/run/rtgpoll-ganglia.pid $RTGPOLL -m -c /etc/ganglia/rtgpoll/rtg.conf -t /etc/ganglia/rtgpoll/target.conf -g /etc/ganglia/gmond.conf
+      daemon --pidfile=/var/run/rtgpoll-ganglia.pid $RTGPOLL -c /etc/ganglia/rtgpoll/rtg.conf -t /etc/ganglia/rtgpoll/target.conf -g /etc/ganglia/gmond.conf
       RETVAL=$?
       echo
       [ $RETVAL -eq 0 ] && touch /var/lock/subsys/rtgpoll-ganglia

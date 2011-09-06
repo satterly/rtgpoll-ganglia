@@ -41,7 +41,7 @@
 #define DEFAULT_SNMP_PORT 161
 
 /* PID File */
-#define PIDFILE "/tmp/rtgpoll.pid"
+#define PIDFILE "/var/run/rtgpoll-ganglia.pid"
 
 #define STAT_DESCRIP_ERROR 99
 #define HASHSIZE 5000
