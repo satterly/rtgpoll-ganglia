@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# chkconfig: 2345 75 35
+# description: RTG Poll for Ganglia startup script
+#
+RTGPOLL=/usr/bin/rtgpoll
+
+# Monitor Ganglia application statistics using appstats.py python module
+APP_NAME=ganglia
+export APP_NAME
+
+. /etc/rc.d/init.d/functions
+
+RETVAL=0
+
+case "$1" in
+   start)
+      echo -n "Starting RTG Poll for Ganglia: "
+      [ -f $RTGPOLL ] || exit 1
+
+      daemon --pidfile=/var/run/rtgpoll-ganglia.pid $RTGPOLL -m -c /etc/ganglia/rtgpoll/rtg.conf -t /etc/ganglia/rtgpoll/target.conf -g /etc/ganglia/gmond.conf
+      RETVAL=$?
+      echo
+      [ $RETVAL -eq 0 ] && touch /var/lock/subsys/rtgpoll-ganglia
+	;;
+
+  stop)
+      echo -n "Shutting down RTG Poll for Ganglia: "
+      killproc -p /var/run/rtgpoll-ganglia.pid rtgpoll
+      RETVAL=$?
+      echo
+      [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/rtgpoll-ganglia
+	;;
+
+  restart|reload)
+   	$0 stop
+   	$0 start
+   	RETVAL=$?
+	;;
+  status)
+   	status -p /var/run/rtgpoll-ganglia.pid rtgpoll-ganglia
+   	RETVAL=$?
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart|status}"
+	exit 1
+esac
+
+exit $RETVAL
