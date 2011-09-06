@@ -1,6 +1,6 @@
 Name:           rtgpoll-ganglia
 Version:        0.9
-Release:        1
+Release:        1%{?dist}
 Summary:        SNMP Poller for Ganglia
 Group:          System Environment/Base
 License:        GNU GPL
