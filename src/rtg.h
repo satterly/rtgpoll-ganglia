@@ -77,7 +77,6 @@ typedef struct config_struct {
     enum debugLevel verbose;
     unsigned short withzeros;
     unsigned short goff;
-    unsigned short multiple;
     unsigned short snmp_ver;
     unsigned short snmp_port;
     unsigned short threads;

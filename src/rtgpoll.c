@@ -16,6 +16,7 @@
 stats_t stats =
 {PTHREAD_MUTEX_INITIALIZER, 0, 0, 0, 0, 0, 0, 0, 0, 0.0};
 char *target_file = NULL;
+char *pid_file = PIDFILE;
 target_t *current = NULL;
 int entries = 0;
 /* dfp is a debug file pointer.  Points to stderr unless debug=level is set */
@@ -49,7 +50,7 @@ int main(int argc, char *argv[]) {
     config_defaults(&set);
 
     /* Parse the command-line. */
-    while ((ch = getopt(argc, argv, "c:g:Ghmt:vz")) != EOF)
+    while ((ch = getopt(argc, argv, "c:g:Ght:p:vz")) != EOF)
 	switch ((char) ch) {
 	case 'c':
 	    conf_file = optarg;
@@ -63,11 +64,11 @@ int main(int argc, char *argv[]) {
 	case 'h':
 	    usage(argv[0]);
 	    break;
-	case 'm':
-	    set.multiple++;
-	    break;
 	case 't':
 	    target_file = optarg;
+	    break;
+	case 'p':
+	    pid_file = optarg;
 	    break;
 	case 'v':
 	    set.verbose++;
@@ -107,8 +108,7 @@ int main(int argc, char *argv[]) {
     sigaddset(&signal_set, SIGTERM);
     sigaddset(&signal_set, SIGINT);
     sigaddset(&signal_set, SIGQUIT);
-	if (!set.multiple) 
-    	checkPID(PIDFILE);
+    checkPID(pid_file);
 
     if (pthread_sigmask(SIG_BLOCK, &signal_set, NULL) != 0) {
 	printf("pthread_sigmask error\n");
@@ -336,7 +336,7 @@ void *sig_handler(void *arg)
                 if (set.verbose >= LOW)
                    printf("Quiting: received signal %d.\n", sig_number);
                 syslog(LOG_WARNING, "Quiting: received signal %d", sig_number);
-                unlink(PIDFILE);
+                unlink(pid_file);
                 closelog();
                 exit(1);
                 break;
@@ -348,15 +348,15 @@ void *sig_handler(void *arg)
 void usage(char *prog)
 {
     printf("rtgpoll - RTG v%s\n", VERSION);
-    printf("Usage: %s [-Gmz] [-vvv] [-c <rtg.conf>] [-g <gmond.conf>] -t <target.conf>\n", prog);
+    printf("Usage: %s [-Gz] [-vvv] [-c <rtg.conf>] [-g <gmond.conf>] -t <target.conf> [-p <pidfile>]\n", prog);
     printf("\nOptions:\n");
     printf("  -c <file>   Specify RTG configuration file\n");
-    printf("  -g <file>   Specify Ganglia agent config file (default: /etc/ganglia/gmond.conf)\n");
+    printf("  -g <file>   Specify Ganglia agent config file (default: %s)\n", DEFAULT_GMOND_CONF);
     printf("  -G          Disable Ganglia metric reporting\n");
     printf("  -t <file>   Specify SNMP target file\n");
+    printf("  -p <file>   Write process-id to file (default: %s)\n", PIDFILE);
     printf("  -v          Increase verbosity\n");
-	printf("  -m          Allow multiple instances\n");
-	printf("  -z          Database zero delta inserts\n");
+    printf("  -z          Database zero delta inserts\n");
     printf("  -h          Help\n");
     exit(-1);
 }

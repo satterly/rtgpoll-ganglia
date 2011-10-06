@@ -1614,7 +1614,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=rtgpoll
- VERSION=0.9
+ VERSION=1.0
 
 
 cat >>confdefs.h <<_ACEOF

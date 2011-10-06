@@ -6,7 +6,7 @@
 AC_INIT(src/rtg.h)
 AC_CONFIG_AUX_DIR(config)
 AC_SUBST(ac_aux_dir)
-AM_INIT_AUTOMAKE(rtgpoll, 0.9)
+AM_INIT_AUTOMAKE(rtgpoll, 1.0)
 AC_SUBST(VERSION)
 AM_CONFIG_HEADER(config/config.h)
 AC_CANONICAL_HOST
