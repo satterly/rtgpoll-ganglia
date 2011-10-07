@@ -87,7 +87,7 @@ typedef struct config_struct {
 typedef struct target_struct {
     char host[64];
     char objoid[128];
-    unsigned short bits;	// 32/64=counter, 0=gauge
+    unsigned short bits;	// 32/64=counter, 1=gauge, 0=constant
     char community[64];
     char table[64];		// metric name
     char units[64];

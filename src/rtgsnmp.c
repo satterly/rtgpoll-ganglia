@@ -51,7 +51,7 @@ void *poller(void *thread_args)
     unsigned long long result = 0;
     unsigned long long last_value = 0;
     unsigned long long insert_val = 0;
-    int status = 0, bits = 0, init = 0;
+    int status = 0, bits = 1, init = 0, is_string = 0;
     char query[BUFSIZE];
     char storedoid[BUFSIZE];
     char result_string[BUFSIZE];
@@ -148,6 +148,7 @@ void *poller(void *thread_args)
 #else
 	    snprint_value(result_string, BUFSIZE, anOID, anOID_len, vars);
 #endif
+	    is_string = 0;
 	    switch (vars->type) {
 		/*
 		 * Switch over vars->type and modify/assign result accordingly.
@@ -172,11 +173,16 @@ void *poller(void *thread_args)
 		    break;
 		case ASN_TIMETICKS:
 		    if (set.verbose >= DEBUG) printf("Timeticks result: (%s@%s) %s\n", session.peername, storedoid, result_string);
-		    result = (unsigned long) *(vars->val.integer);
+		    result = (unsigned long) *(vars->val.integer) / 100; /* TimeTicks are hundredths of a second */
 		    break;
 		case ASN_OPAQUE:
 		    if (set.verbose >= DEBUG) printf("Opaque result: (%s@%s) %s\n", session.peername, storedoid, result_string);
 		    result = (unsigned long) *(vars->val.integer);
+		    break;
+		case ASN_OCTET_STR:
+		    if (set.verbose >= DEBUG) printf("String result: (%s@%s) %s\n", session.peername, storedoid, result_string);
+                    snprintf(result_string, BUFSIZE, "%s", (char*)vars->val.string);
+		    is_string = 1;
 		    break;
 		default:
 		    if (set.verbose >= DEBUG) printf("Unknown result type: (%s@%s) %s\n", session.peername, storedoid, result_string);
@@ -184,7 +190,7 @@ void *poller(void *thread_args)
 	    }
 
 		/* Gauge Type */
-		if (bits == 0) {
+		if (bits == 1) {
 			if (result != last_value) {
 				insert_val = result;
 				if (set.verbose >= HIGH) 
@@ -254,14 +260,19 @@ void *poller(void *thread_args)
 
 			char spoof[BUFSIZE];
 			snprintf(spoof, sizeof(spoof), "%s:%s", ipstr, session.peername);
+
 			char buf_val[BUFSIZE];
-			snprintf(buf_val, sizeof(buf_val), "%llu", insert_val);
+                        if (is_string == 0) {
+			    snprintf(buf_val, sizeof(buf_val), "%llu", insert_val);
+			} else {
+			    snprintf(buf_val, sizeof(buf_val), "%s", result_string);
+			}
 			if (!strcmp(entry->units, "\"\""))
 				snprintf(entry->units, sizeof(entry->units), "");
 
 			if (set.verbose >= DEBUG)
-				printf("SEND: gmetric --spoof %s:%s --name %s --value %s --type uint32 --units %s --slope both --tmax %d --dmax %d\n",
-				ipstr, session.peername, entry->table, buf_val, entry->units, set.interval, entry->iid);
+				printf("SEND: gmetric --spoof %s:%s --name %s --value %s --type %s --units %s --slope both --tmax %d --dmax %d\n",
+				ipstr, session.peername, entry->table, buf_val, (is_string == 0 ? "uint32" : "string"), entry->units, set.interval, entry->iid);
 
 			if (set.verbose >= DEBUG)
                                 printf(" --group %s --description %s --title %s\n", 
@@ -275,8 +286,8 @@ void *poller(void *thread_args)
 				exit(1);
 			}
 
-			rval = Ganglia_metric_set(gmetric, entry->table, buf_val, "uint32",     // FIXME -- others needed?
-				entry->units, GANGLIA_SLOPE_BOTH, set.interval, entry->iid);  // FIXME -- is dmax ignored?
+			rval = Ganglia_metric_set(gmetric, entry->table, buf_val, (is_string == 0 ? "uint32" : "string"),
+				entry->units, (bits ? GANGLIA_SLOPE_BOTH : GANGLIA_SLOPE_ZERO), set.interval, entry->iid);  // FIXME -- is dmax ignored?
 
 			Ganglia_metadata_add(gmetric, SPOOF_HOST, spoof);
                         if (strlen(entry->group))
