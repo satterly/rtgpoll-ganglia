@@ -33,5 +33,14 @@ install-sh
 missing
 .deps/*
 
+autom4te.cache/output.1
+autom4te.cache/requests
+autom4te.cache/traces.1
+config/config.h
+src/.deps/rtghash.Po
+src/.deps/rtgpoll.Po
+src/.deps/rtgsnmp.Po
+
+
 # Indent backups
 *.[hc]~
