@@ -25,4 +25,4 @@ Makefile.in
 /missing
 
 # Indent backups
-*.c~
+*.[hc]~
