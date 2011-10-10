@@ -8,7 +8,7 @@
 #ifndef _RTG_H_
 #define _RTG_H_ 1
 
-/* Defines */ 
+/* Defines */
 #ifndef FALSE
 # define FALSE 0
 #endif
@@ -59,10 +59,10 @@
 #define PT_COND_BROAD(x) if (pthread_cond_broadcast(x) != 0) printf(PCB_ERR);
 
 /* Verbosity levels LOW=info HIGH=info+SQL DEBUG=info+SQL+junk */
-enum debugLevel {OFF, LOW, HIGH, DEBUG, DEVELOP}; 
+enum debugLevel { OFF, LOW, HIGH, DEBUG, DEVELOP };
 
 /* Target state */
-enum targetState {NEW, LIVE, STALE};
+enum targetState { NEW, LIVE, STALE };
 
 /* Typedefs */
 typedef struct worker_struct {
@@ -123,7 +123,7 @@ typedef struct poll_stats {
     unsigned int out_of_range;
     unsigned int errors;
     unsigned int slow;
-    double poll_time; 
+    double poll_time;
 } stats_t;
 
 typedef struct hash_struct {
@@ -144,7 +144,7 @@ void *poller(void *);
 int read_rtg_config(char *, config_t *);
 int write_rtg_config(char *, config_t *);
 void config_defaults(config_t *);
-void print_stats (stats_t);
+void print_stats(stats_t);
 void sleepy(float);
 void timestamp(char *);
 int checkPID(char *);
@@ -172,4 +172,4 @@ int waiting;
 char config_paths[CONFIG_PATHS][BUFSIZE];
 hash_t hash;
 
-#endif /* not _RTG_H_ */
+#endif				/* not _RTG_H_ */

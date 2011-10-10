@@ -13,8 +13,7 @@
 #include <ganglia.h>
 
 /* Yes.  Globals. */
-stats_t stats =
-{PTHREAD_MUTEX_INITIALIZER, 0, 0, 0, 0, 0, 0, 0, 0, 0.0};
+stats_t stats = { PTHREAD_MUTEX_INITIALIZER, 0, 0, 0, 0, 0, 0, 0, 0, 0.0 };
 char *target_file = NULL;
 char *pid_file = PIDFILE;
 target_t *current = NULL;
@@ -29,7 +28,8 @@ Ganglia_gmond_config gmond_config;
 Ganglia_udp_send_channels send_channels;
 
 /* Main rtgpoll */
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     crew_t crew;
     pthread_t sig_thread;
     sigset_t signal_set;
@@ -40,13 +40,13 @@ int main(int argc, char *argv[]) {
     char errstr[BUFSIZE];
     int ch, i;
 
-	dfp = stderr;
+    dfp = stderr;
 
     /* Check argument count */
     if (argc < 3)
 	usage(argv[0]);
 
-	/* Set default environment */
+    /* Set default environment */
     config_defaults(&set);
 
     /* Parse the command-line. */
@@ -78,20 +78,20 @@ int main(int argc, char *argv[]) {
 	    break;
 	}
 
-   //fork unless debug mode
-   if (set.verbose == OFF) {
-       if (fork() == 0) {
-           umask(0);
-           setsid();
-           close(0);
-           close(1);
-           close(2);
-           if (fork())
-               return (0);
-       } else {
-           return (0);
-       }
-   }
+    //fork unless debug mode
+    if (set.verbose == OFF) {
+	if (fork() == 0) {
+	    umask(0);
+	    setsid();
+	    close(0);
+	    close(1);
+	    close(2);
+	    if (fork())
+		return (0);
+	} else {
+	    return (0);
+	}
+    }
 
     /* Initialize syslog */
     openlog(program, LOG_PID, LOG_USER);
@@ -112,73 +112,79 @@ int main(int argc, char *argv[]) {
 
     if (pthread_sigmask(SIG_BLOCK, &signal_set, NULL) != 0) {
 	printf("pthread_sigmask error\n");
-        syslog(LOG_ERR, "pthread_sigmask error!");
+	syslog(LOG_ERR, "pthread_sigmask error!");
     }
 
     /* Read configuration file to establish local environment */
     if (conf_file) {
-      if ((read_rtg_config(conf_file, &set)) < 0) {
-         printf("Could not read config file: %s\n", conf_file);
-         syslog(LOG_ERR, "Could not read config file: %s", conf_file);
-	 closelog();
-         exit(-1);
-      }
+	if ((read_rtg_config(conf_file, &set)) < 0) {
+	    printf("Could not read config file: %s\n", conf_file);
+	    syslog(LOG_ERR, "Could not read config file: %s", conf_file);
+	    closelog();
+	    exit(-1);
+	}
     } else {
-      conf_file = malloc(BUFSIZE);
-      if (!conf_file) {
-         printf("Fatal malloc error!\n");
-         syslog(LOG_ERR, "Fatal malloc error!");
-         closelog();
-         exit(-1);
-      }
-      for(i=0;i<CONFIG_PATHS;i++) {
-        snprintf(conf_file, BUFSIZE, "%s%s", config_paths[i], DEFAULT_CONF_FILE); 
-        if (read_rtg_config(conf_file, &set) >= 0) {
-           break;
-        } 
-        if (i == CONFIG_PATHS-1) {
-           snprintf(conf_file, BUFSIZE, "%s%s", config_paths[0], DEFAULT_CONF_FILE); 
-	   if ((write_rtg_config(conf_file, &set)) < 0) {
-	      fprintf(stderr, "Couldn't write config file.\n");
-	      syslog(LOG_ERR, "Couldn't write config file '%s'.", conf_file);
-              closelog();
-	      exit(-1);
+	conf_file = malloc(BUFSIZE);
+	if (!conf_file) {
+	    printf("Fatal malloc error!\n");
+	    syslog(LOG_ERR, "Fatal malloc error!");
+	    closelog();
+	    exit(-1);
+	}
+	for (i = 0; i < CONFIG_PATHS; i++) {
+	    snprintf(conf_file, BUFSIZE, "%s%s", config_paths[i],
+		     DEFAULT_CONF_FILE);
+	    if (read_rtg_config(conf_file, &set) >= 0) {
+		break;
 	    }
-        }
-      }
+	    if (i == CONFIG_PATHS - 1) {
+		snprintf(conf_file, BUFSIZE, "%s%s", config_paths[0],
+			 DEFAULT_CONF_FILE);
+		if ((write_rtg_config(conf_file, &set)) < 0) {
+		    fprintf(stderr, "Couldn't write config file.\n");
+		    syslog(LOG_ERR, "Couldn't write config file '%s'.",
+			   conf_file);
+		    closelog();
+		    exit(-1);
+		}
+	    }
+	}
     }
     if (gmond_conf) {
-    /* Open the Ganglia config file */
-    FILE *gfp;
+	/* Open the Ganglia config file */
+	FILE *gfp;
 
-        if ((gfp = fopen(gmond_conf, "r")) == NULL) {
-                fprintf(stderr, "\nCould not open target file for reading '%s'.\n", gmond_conf);
-                syslog(LOG_ERR, "Could not open target file for reading '%s'.", gmond_conf);
-                closelog();
-                exit(1);
-        }
+	if ((gfp = fopen(gmond_conf, "r")) == NULL) {
+	    fprintf(stderr,
+		    "\nCould not open target file for reading '%s'.\n",
+		    gmond_conf);
+	    syslog(LOG_ERR, "Could not open target file for reading '%s'.",
+		   gmond_conf);
+	    closelog();
+	    exit(1);
+	}
     } else {
-      gmond_conf = malloc(BUFSIZE);
-      if (!gmond_conf) {
-         printf("Fatal malloc error!\n");
-         syslog(LOG_ERR, "Fatal malloc error!");
-         closelog();
-         exit(1);
-      }
-        snprintf(gmond_conf, BUFSIZE, "%s", DEFAULT_GMOND_CONF); 
+	gmond_conf = malloc(BUFSIZE);
+	if (!gmond_conf) {
+	    printf("Fatal malloc error!\n");
+	    syslog(LOG_ERR, "Fatal malloc error!");
+	    closelog();
+	    exit(1);
+	}
+	snprintf(gmond_conf, BUFSIZE, "%s", DEFAULT_GMOND_CONF);
     }
     if (set.verbose >= LOW)
-            printf("\nUsing Ganglia config file [%s].\n", gmond_conf);
+	printf("\nUsing Ganglia config file [%s].\n", gmond_conf);
     syslog(LOG_NOTICE, "Using Ganglia config file [%s].", gmond_conf);
 
     /* hash list of targets to be polled */
-    if (target_file != NULL) 
+    if (target_file != NULL)
 	entries = hash_target_file(target_file);
     else {
-        fprintf(stderr, "No target file defined. Exiting.\n");
-        syslog(LOG_ERR, "No target file defined. Exiting.");
-        closelog();
-        exit(-1);
+	fprintf(stderr, "No target file defined. Exiting.\n");
+	syslog(LOG_ERR, "No target file defined. Exiting.");
+	closelog();
+	exit(-1);
     }
     if (entries <= 0) {
 	fprintf(stderr, "Error updating target list.\n");
@@ -196,8 +202,10 @@ int main(int argc, char *argv[]) {
 
     /* Initialize the SNMP session */
     if (set.verbose >= LOW)
-	printf("Initializing SNMP (v%d, port %d).\n", set.snmp_ver, set.snmp_port);
-    syslog(LOG_NOTICE, "Initializing SNMP (v%d, port %d).", set.snmp_ver, set.snmp_port);
+	printf("Initializing SNMP (v%d, port %d).\n", set.snmp_ver,
+	       set.snmp_port);
+    syslog(LOG_NOTICE, "Initializing SNMP (v%d, port %d).", set.snmp_ver,
+	   set.snmp_port);
     init_snmp("RTG");
 
     /* Ganglia setup */
@@ -207,22 +215,25 @@ int main(int argc, char *argv[]) {
     /* create the global context */
     global_context = Ganglia_pool_create(NULL);
     if (!global_context) {
-        fprintf(stderr, "Unable to create global context. Exiting.\n");
-        syslog(LOG_ERR, "Unable to create global context. Exiting.");
-        closelog();
-        exit(1);
+	fprintf(stderr, "Unable to create global context. Exiting.\n");
+	syslog(LOG_ERR, "Unable to create global context. Exiting.");
+	closelog();
+	exit(1);
     }
 
     /* parse the configuration file */
-    gmond_config = Ganglia_gmond_config_create(gmond_conf, 0);       // FIXME -- use SYSCONFDIR
+    gmond_config = Ganglia_gmond_config_create(gmond_conf, 0);	// FIXME -- use SYSCONFDIR
 
     /* build the udp send channels */
-    send_channels = Ganglia_udp_send_channels_create(global_context, gmond_config);
+    send_channels =
+	Ganglia_udp_send_channels_create(global_context, gmond_config);
     if (!send_channels) {
-        fprintf(stderr, "Unable to create ganglia send channels. Exiting.\n");
-        syslog(LOG_ERR, "Unable to create ganglia send channels. Exiting.");
-        closelog();
-        exit(1);
+	fprintf(stderr,
+		"Unable to create ganglia send channels. Exiting.\n");
+	syslog(LOG_ERR,
+	       "Unable to create ganglia send channels. Exiting.");
+	closelog();
+	exit(1);
     }
     if (set.verbose >= LOW)
 	printf("Ganglia Ready.\n");
@@ -235,12 +246,15 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < set.threads; i++) {
 	crew.member[i].index = i;
 	crew.member[i].crew = &crew;
-	if (pthread_create(&(crew.member[i].thread), NULL, poller, (void *) &(crew.member[i])) != 0) {
+	if (pthread_create
+	    (&(crew.member[i].thread), NULL, poller,
+	     (void *) &(crew.member[i])) != 0) {
 	    printf("pthread_create error\n");
-            syslog(LOG_ERR, "pthread_create error");
-        }
+	    syslog(LOG_ERR, "pthread_create error");
+	}
     }
-    if (pthread_create(&sig_thread, NULL, sig_handler, (void *) &(signal_set)) != 0) {
+    if (pthread_create
+	(&sig_thread, NULL, sig_handler, (void *) &(signal_set)) != 0) {
 	printf("pthread_create error\n");
 	syslog(LOG_ERR, "pthread_create error");
     }
@@ -263,14 +277,14 @@ int main(int argc, char *argv[]) {
 	current = getNext();
 	crew.work_count = entries;
 	PT_MUTEX_UNLOCK(&(crew.mutex));
-	    
+
 	if (set.verbose >= LOW)
-        timestamp("Queue ready, broadcasting thread go condition.");
+	    timestamp("Queue ready, broadcasting thread go condition.");
 	PT_COND_BROAD(&(crew.go));
 	PT_MUTEX_LOCK(&(crew.mutex));
-	    
+
 	while (crew.work_count > 0) {
-		PT_COND_WAIT(&(crew.done), &(crew.mutex));
+	    PT_COND_WAIT(&(crew.done), &(crew.mutex));
 	}
 	PT_MUTEX_UNLOCK(&(crew.mutex));
 
@@ -278,28 +292,29 @@ int main(int argc, char *argv[]) {
 	lock = FALSE;
 	end_time = (double) now.tv_usec / 1000000 + now.tv_sec;
 	stats.poll_time = end_time - begin_time;
-        stats.round++;
+	stats.round++;
 	sleep_time = set.interval - stats.poll_time;
 
 	if (waiting) {
 	    if (set.verbose >= HIGH)
 		printf("Processing pending SIGHUP.\n");
-            syslog(LOG_NOTICE, "Processing pending SIGHUP.");
+	    syslog(LOG_NOTICE, "Processing pending SIGHUP.");
 	    entries = hash_target_file(target_file);
 	    waiting = FALSE;
 	}
 	if (set.verbose >= LOW) {
-        snprintf(errstr, sizeof(errstr), "Poll round %d complete.", stats.round);
-        timestamp(errstr);
-        syslog(LOG_NOTICE, "%s", errstr);
+	    snprintf(errstr, sizeof(errstr), "Poll round %d complete.",
+		     stats.round);
+	    timestamp(errstr);
+	    syslog(LOG_NOTICE, "%s", errstr);
 	    print_stats(stats);
-    }
+	}
 	if (sleep_time <= 0)
 	    stats.slow++;
 	else
 	    sleepy(sleep_time);
 
-    } /* while */
+    }				/* while */
 
     exit(0);
 }
@@ -315,46 +330,50 @@ void *sig_handler(void *arg)
     while (1) {
 	sigwait(signal_set, &sig_number);
 	switch (sig_number) {
-            case SIGHUP:
-                if(lock) {
-                    waiting = TRUE;
-                }
-                else {
-                    entries = hash_target_file(target_file);
-                    waiting = FALSE;
-                }
-                break;
-            case SIGUSR1:
-                set.verbose++;
-                break;
-            case SIGUSR2:
-                set.verbose--;
-                break;
-            case SIGTERM:
-            case SIGINT:
-            case SIGQUIT:
-                if (set.verbose >= LOW)
-                   printf("Quiting: received signal %d.\n", sig_number);
-                syslog(LOG_WARNING, "Quiting: received signal %d", sig_number);
-                unlink(pid_file);
-                closelog();
-                exit(1);
-                break;
-        }
-   }
+	case SIGHUP:
+	    if (lock) {
+		waiting = TRUE;
+	    } else {
+		entries = hash_target_file(target_file);
+		waiting = FALSE;
+	    }
+	    break;
+	case SIGUSR1:
+	    set.verbose++;
+	    break;
+	case SIGUSR2:
+	    set.verbose--;
+	    break;
+	case SIGTERM:
+	case SIGINT:
+	case SIGQUIT:
+	    if (set.verbose >= LOW)
+		printf("Quiting: received signal %d.\n", sig_number);
+	    syslog(LOG_WARNING, "Quiting: received signal %d", sig_number);
+	    unlink(pid_file);
+	    closelog();
+	    exit(1);
+	    break;
+	}
+    }
 }
 
 
 void usage(char *prog)
 {
     printf("rtgpoll - RTG v%s\n", VERSION);
-    printf("Usage: %s [-Gz] [-vvv] [-c <rtg.conf>] [-g <gmond.conf>] -t <target.conf> [-p <pidfile>]\n", prog);
+    printf
+	("Usage: %s [-Gz] [-vvv] [-c <rtg.conf>] [-g <gmond.conf>] -t <target.conf> [-p <pidfile>]\n",
+	 prog);
     printf("\nOptions:\n");
     printf("  -c <file>   Specify RTG configuration file\n");
-    printf("  -g <file>   Specify Ganglia agent config file (default: %s)\n", DEFAULT_GMOND_CONF);
+    printf
+	("  -g <file>   Specify Ganglia agent config file (default: %s)\n",
+	 DEFAULT_GMOND_CONF);
     printf("  -G          Disable Ganglia metric reporting\n");
     printf("  -t <file>   Specify SNMP target file\n");
-    printf("  -p <file>   Write process-id to file (default: %s)\n", PIDFILE);
+    printf("  -p <file>   Write process-id to file (default: %s)\n",
+	   PIDFILE);
     printf("  -v          Increase verbosity\n");
     printf("  -z          Database zero delta inserts\n");
     printf("  -h          Help\n");
