@@ -73,9 +73,6 @@ int main(int argc, char *argv[])
         case 'v':
             set.verbose++;
             break;
-        case 'z':
-            set.withzeros = TRUE;
-            break;
         }
 
     //fork unless debug mode
@@ -347,7 +344,7 @@ void *sig_handler(void *arg)
 void usage(char *prog)
 {
     printf("rtgpoll - RTG v%s\n", VERSION);
-    printf("Usage: %s [-Gz] [-vvv] [-c <rtg.conf>] [-g <gmond.conf>] -t <target.conf> [-p <pidfile>]\n", prog);
+    printf("Usage: %s [-G] [-vvv] [-c <rtg.conf>] [-g <gmond.conf>] -t <target.conf> [-p <pidfile>]\n", prog);
     printf("\nOptions:\n");
     printf("  -c <file>   Specify RTG configuration file\n");
     printf("  -g <file>   Specify Ganglia agent config file (default: %s)\n", DEFAULT_GMOND_CONF);
@@ -355,7 +352,6 @@ void usage(char *prog)
     printf("  -t <file>   Specify SNMP target file\n");
     printf("  -p <file>   Write process-id to file (default: %s)\n", PIDFILE);
     printf("  -v          Increase verbosity\n");
-    printf("  -z          Database zero delta inserts\n");
     printf("  -h          Help\n");
     exit(-1);
 }

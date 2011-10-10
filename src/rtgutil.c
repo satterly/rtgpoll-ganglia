@@ -103,7 +103,6 @@ void config_defaults(config_t * set)
     set->snmp_port = DEFAULT_SNMP_PORT;
     set->threads = DEFAULT_THREADS;
     set->goff = FALSE;
-    set->withzeros = FALSE;
     set->verbose = OFF;
     strncpy(config_paths[0], CONFIG_PATH_1, sizeof(config_paths[0]));
     snprintf(config_paths[1], sizeof(config_paths[1]), "%s/etc/", RTG_HOME);

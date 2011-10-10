@@ -138,7 +138,7 @@ void walk_target_hash()
         p = hash.table[i];
         while (p) {
             printf("[%d/%d]: %s %s %d %s %s %s %d %s %s %s\n", targets, i,
-                   p->host, p->objoid, p->bits, p->community, p->table, p->units, p->iid, p->group, p->title, p->descr);
+                   p->host, p->objoid, p->slope, p->community, p->table, p->units, p->iid, p->group, p->title, p->descr);
             targets++;
             p = p->next;
         }
@@ -280,7 +280,7 @@ int hash_target_file(char *file)
             }
             sscanf(buffer,
                    "%64s %128s %hu %64s %64s %64s %d \"%64[^\"]\" \"%64[^\"]\" \"%128[^\"]\"",
-                   new->host, new->objoid, &(new->bits), new->community,
+                   new->host, new->objoid, &(new->slope), new->community,
                    new->table, new->units, &(new->iid), new->group, new->title, new->descr);
             if (alldigits(maxspeed)) {
 #ifdef HAVE_STRTOLL
