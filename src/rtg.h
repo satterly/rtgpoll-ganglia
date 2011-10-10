@@ -87,11 +87,11 @@ typedef struct config_struct {
 typedef struct target_struct {
     char host[64];
     char objoid[128];
-    unsigned short bits;	// 32/64=counter, 1=gauge, 0=constant
+    unsigned short bits;        // 32/64=counter, 1=gauge, 0=constant
     char community[64];
-    char table[64];		// metric name
+    char table[64];             // metric name
     char units[64];
-    unsigned int iid;		// dmax -- not supported until gmetric v3.2.0
+    unsigned int iid;           // dmax -- not supported until gmetric v3.2.0
     char title[64];
     char group[64];
     char descr[128];
@@ -172,4 +172,4 @@ int waiting;
 char config_paths[CONFIG_PATHS][BUFSIZE];
 hash_t hash;
 
-#endif				/* not _RTG_H_ */
+#endif                          /* not _RTG_H_ */

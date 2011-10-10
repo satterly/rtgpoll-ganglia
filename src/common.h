@@ -12,7 +12,7 @@
 #  include <string.h>
 #elif HAVE_STRINGS_H
 #  include <strings.h>
-#endif				/*STDC_HEADERS */
+#endif                          /*STDC_HEADERS */
 
 #if HAVE_UNISTD_H
 #  include <sys/types.h>
@@ -46,4 +46,4 @@
 
 #include <signal.h>
 
-#endif				/* RTG_COMMON_H */
+#endif                          /* RTG_COMMON_H */
