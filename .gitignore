@@ -1,3 +1,8 @@
+# Compiled binary
+rtgpoll
+
+config/config.h
+
 # Compiled Object files
 *.slo
 *.lo
@@ -13,16 +18,20 @@
 *.a
 
 # http://www.gnu.org/software/automake
+Makefile
 Makefile.in
+config.log
+config.status
 
 # http://www.gnu.org/software/autoconf
-/autom4te.cache
-/aclocal.m4
-/compile
-/configure
-/depcomp
-/install-sh
-/missing
+autom4te.cache/*
+aclocal.m4
+compile
+configure
+depcomp
+install-sh
+missing
+.deps/*
 
 # Indent backups
 *.[hc]~
