@@ -9,7 +9,9 @@ URL:            https://github.com/satterly/rtgpoll-ganglia
 Source0: 	%{name}-%{version}.tar.gz
 BuildRoot:      %{_builddir}/%{name}-%{version}-rpmroot
 Requires:	net-snmp-utils
+BuildRequires:  net-snmp-devel
 Requires:	libganglia >= 3.1.7
+BuildRequires:  ganglia-devel >= 3.1.7
 
 %description
 RTG SNMP poller with Ganglia integration.
